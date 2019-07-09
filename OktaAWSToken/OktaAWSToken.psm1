@@ -54,7 +54,7 @@ function GetSAML {
       $OktaSession = Invoke-WebRequest -Uri "$APIUrl" -Method Post -Body $BodyCred -ContentType "application/json" -SessionVariable okta -ErrorAction stop
     }
     catch {
-      Write-Error -Message 'Error during authenticating with given username/ password.'
+      Write-Error -Message 'Error during authenticating with given username/password.'
       throw
     }
     $status = (ConvertFrom-Json $OktaSession.Content).status
@@ -94,28 +94,32 @@ function GetSAML {
       $OneTimeToken = (ConvertFrom-Json  $MFAAuth.Content).sessiontoken
 
       $AuthURI = "$($oktaaccount.appurl)?onetimetoken=$OneTimeToken"
-      Write-Verbose "$AuthURI is: $AuthURI"
+      Write-Verbose "`$AuthURI is: $AuthURI"
       <#
             The -UseBasicParsing here prevents the script from opening up extra browser session caused by DCOM parsing.
             However, the response isn't fully decoded in that case. Additional steps are taken for decoding.
         #>
       $SamlAuth = Invoke-WebRequest -uri $AuthURI -SessionVariable okta -UseBasicParsing
       $SamlResponse = $SamlAuth.inputfields | Where-Object name -like "saml*" | Select-Object -ExpandProperty value
-      Write-Verbose "$SamlResponse is: $SamlResponse"
+      Write-Verbose "`$SamlResponse is: $SamlResponse"
       $SamlResponse = $SamlResponse.Replace("&#x2b;", "+").Replace("&#x3d;", "=")
       Write-Output $SamlResponse
     } # End if
     elseif ($status -like 'SUCCESS') {
       # Password auth. This part has not be validated.
-      $AuthURI = "$($oktaaccount.appurl)"
-      Write-Verbose "$AuthURI is: $AuthURI"
+
+      $OneTimeToken = (ConvertFrom-Json  $OktaSession.Content).sessiontoken
+
+      $AuthURI = "$($oktaaccount.appurl)?onetimetoken=$OneTimeToken"
+      Write-Verbose "`$AuthURI is: $AuthURI"
       <#
             The -UseBasicParsing here prevents the script from opening up extra browser session caused by DCOM parsing.
             However, the response isn't fully decoded in that case. Additional steps are taken for decoding.
         #>
-      $SamlAuth = Invoke-WebRequest -uri $AuthURI -SessionVariable okta -Body $BodyCred -ContentType "application/json" -UseBasicParsing
+      $SamlAuth = Invoke-WebRequest -uri $AuthURI -SessionVariable okta -ContentType "application/json" -UseBasicParsing
+      Write-Verbose "inputfields is $($SamlAuth.inputfields)"
       $SamlResponse = $SamlAuth.inputfields | Where-Object name -like "saml*" | Select-Object -ExpandProperty value
-      Write-Verbose "$SamlResponse is: $SamlResponse"
+      Write-Verbose "`$SamlResponse is: $SamlResponse"
       $SamlResponse = $SamlResponse.Replace("&#x2b;", "+").Replace("&#x3d;", "=")
       Write-Output $SamlResponse
     } # End elseif
@@ -155,7 +159,7 @@ The tool will prompt for credentials (MFA supported) to authenticate against Okt
 
 .EXAMPLE
 In this example, the module is imported manually.
-And then we use the Get-OktaAWSToken to pipe the temporary credentail to Set-AWSCredentials cmdlet in the AWSPowerShell module.
+And then we use the Get-OktaAWSToken to pipe the temporary credential to Set-AWSCredentials cmdlet in the AWSPowerShell module.
 
 PS:/> Import-module c:\<path-to-module>\OktaAWSToken
 PS:/> Get-OktaAWSToken | Set-AWSCredentials
